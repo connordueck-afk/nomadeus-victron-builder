@@ -1,0 +1,11 @@
+node_modules/
+dist/
+node-portable/
+node-portable.zip
+*.tsbuildinfo
+.DS_Store
+dev-server.*
+debug-page.mjs
+screenshot-diagram.mjs
+diagram-screenshot*.png
+diagram.svg

@@ -1,0 +1,389 @@
+# AGENTS.md — Nomadeus Victron System Builder
+
+## Project Purpose
+
+Build a simple local web app to help validate the Nomadeus Mobile All-In-One Hybrid Inverter concept against equivalent Victron-based system BOMs.
+
+This is not a production tool. It is an internal side-project tool for concept validation, cost comparison, and system architecture exploration.
+
+The app should help answer:
+
+* What Victron products are needed for a given mobile/off-grid application?
+* How many separate hardware products are required?
+* What is the estimated BOM cost using MSRP and estimated OEM pricing?
+* How does that compare to a simplified Nomadeus-style integrated product?
+* Which applications show the strongest value proposition for Nomadeus?
+
+## Technical Stack
+
+Use:
+
+* React
+* TypeScript
+* Vite
+* Plain CSS or CSS modules
+* Local JSON data files
+* Browser localStorage for save/load
+* No backend
+* No database server
+* No authentication
+* No cloud services
+
+The app should run locally with:
+
+```bash
+npm install
+npm run dev
+```
+
+## Project Setup Requirements
+
+If the project is empty, create a Vite React TypeScript project in the current folder.
+
+Suggested structure:
+
+```text
+/src
+  /components
+    AppLayout.tsx
+    Sidebar.tsx
+    ProductSection.tsx
+    BomRow.tsx
+    SummaryPanel.tsx
+    ApplicationSelector.tsx
+    NomadeusComparison.tsx
+  /data
+    victronProducts.ts
+    applicationPresets.ts
+  /types
+    product.ts
+    system.ts
+  /utils
+    calculations.ts
+    storage.ts
+  App.tsx
+  main.tsx
+  styles.css
+AGENTS.md
+README.md
+package.json
+```
+
+## Core Product Concept
+
+The main UI is a system builder. It should have product sections such as:
+
+* MPPT Solar Chargers
+* Inverter / Chargers
+* DC-DC Chargers
+* AC Chargers
+* Battery Monitors
+* System Controllers
+* DC Distribution
+* Battery Protection
+* Transfer / Switching
+* Accessories / Other
+* Cables & Materials
+
+Each section should display a table.
+
+Each section should have a `+ Add` button.
+
+Clicking `+ Add` should add a row to that section.
+
+Each row should allow the user to:
+
+* Select a product model number from a dropdown
+* Enter quantity
+* See auto-filled description
+* See auto-filled relevant specs
+* See unit MSRP
+* See unit OEM estimate
+* See calculated line total
+* Delete the row
+
+The app should support multiple products per section. For example, a system may use more than one MPPT.
+
+## Product Database
+
+Create a local product database with sample Victron data.
+
+The product data should be structured enough that more products can be added later.
+
+Use a TypeScript data file or JSON-like array.
+
+Each product should include:
+
+```ts
+type ProductSection =
+  | "MPPT Solar Chargers"
+  | "Inverter / Chargers"
+  | "DC-DC Chargers"
+  | "AC Chargers"
+  | "Battery Monitors"
+  | "System Controllers"
+  | "DC Distribution"
+  | "Battery Protection"
+  | "Transfer / Switching"
+  | "Accessories / Other"
+  | "Cables & Materials";
+
+type Product = {
+  id: string;
+  section: ProductSection;
+  family: string;
+  modelNumber: string;
+  description: string;
+  dcVoltage?: string;
+  acVoltage?: string;
+  powerRating?: string;
+  chargeCurrent?: string;
+  pvInputVoltage?: string;
+  pvPower?: string;
+  currentRating?: string;
+  communication?: string;
+  msrp: number;
+  oemPrice: number;
+  notes?: string;
+};
+```
+
+Include enough placeholder/sample products to demonstrate the tool.
+
+The sample product data does not need to be perfectly accurate yet. Use obviously editable values and include a note in the README that pricing/specs must be verified before use.
+
+## System Builder UI
+
+The main page should include:
+
+### Left Sidebar
+
+The sidebar should include:
+
+* Nomadeus title
+* Application selector
+* System name input
+* System voltage selector
+* AC output selector
+* Notes field
+* Product section navigation buttons
+
+Application options:
+
+* Small RV
+* Medium RV
+* Large RV
+* Marine Small
+* Marine Heavy
+* Mobile Work Truck
+* Mobile Security Trailer
+* Mobile Lighting Tower
+* Off-Grid Cabin
+* Custom
+
+System voltage options:
+
+* 12 VDC
+* 24 VDC
+* 48 VDC
+
+AC output options:
+
+* 120 VAC
+* 120 / 240 VAC Split Phase
+* 230 VAC
+* No AC Output
+
+### Main Builder Area
+
+The center of the page should show product sections.
+
+Each product section should have:
+
+* Section title
+* `+ Add` button
+* Table of selected products
+* Section subtotal for MSRP
+* Section subtotal for OEM price
+
+For now, show these columns:
+
+* #
+* Model Number
+* Description
+* Key Specs
+* Qty
+* Unit MSRP
+* Total MSRP
+* Unit OEM
+* Total OEM
+* Actions
+
+The key specs field can be generated from available product fields.
+
+### Right Summary Panel
+
+The summary panel should show:
+
+* Total MSRP
+* Total OEM estimate
+* Total selected hardware count
+* Number of Victron product lines
+* Total inverter/charger capacity if available
+* Total MPPT charge current if available
+* Total DC-DC charge current if available
+* Estimated Nomadeus target cost
+* Estimated Nomadeus hardware count
+* Estimated cost delta
+* Estimated hardware reduction
+
+Use simple calculations. Do not over-engineer.
+
+## Nomadeus Comparison
+
+Add a section or panel called `Nomadeus Comparison`.
+
+It should allow manual input of:
+
+* Nomadeus target BOM cost
+* Nomadeus estimated selling price
+* Nomadeus box count
+* Notes
+
+Then calculate:
+
+* Victron MSRP minus Nomadeus estimated selling price
+* Victron OEM total minus Nomadeus target BOM cost
+* Victron hardware count minus Nomadeus box count
+
+This is the key concept-validation area.
+
+## Save / Load
+
+Use browser localStorage.
+
+Add buttons:
+
+* Save System
+* Load Saved System
+* Reset System
+* Export CSV
+
+Save all selected rows, application settings, and Nomadeus comparison values.
+
+## Export
+
+Implement simple CSV export.
+
+The CSV should include:
+
+* Application
+* System name
+* System voltage
+* AC output
+* Product section
+* Model number
+* Description
+* Quantity
+* Unit MSRP
+* Total MSRP
+* Unit OEM
+* Total OEM
+* Notes
+
+## Styling
+
+Use a clean dashboard style.
+
+The interface should be practical, not flashy.
+
+Suggested visual style:
+
+* Light main background
+* Dark left sidebar
+* White cards for each product section
+* Blue accent buttons
+* Clear tables
+* Sticky summary panel on the right if practical
+* Compact spacing
+* Readable fonts
+
+Do not use heavy UI frameworks unless necessary.
+
+No Tailwind unless already installed and configured. Plain CSS is acceptable.
+
+## Functional Requirements
+
+The first working version must support:
+
+1. Displaying all product sections
+2. Adding rows to each section
+3. Selecting products from dropdowns filtered by section
+4. Editing quantity
+5. Deleting rows
+6. Calculating line totals
+7. Calculating section totals
+8. Calculating system totals
+9. Entering manual Nomadeus comparison values
+10. Saving/loading from localStorage
+11. Exporting CSV
+12. Running cleanly with `npm run dev`
+
+## Non-Goals
+
+Do not build:
+
+* Login
+* Cloud sync
+* External database
+* Automated Victron scraping
+* User accounts
+* Production deployment
+* Complex compatibility rules
+* PDF export
+* Payment/quote system
+* Admin panel
+
+## Implementation Notes
+
+Favor simple, readable code.
+
+Keep data structures clean because product data will grow.
+
+Use TypeScript types for products, BOM rows, and system configuration.
+
+Separate calculation logic into utility functions.
+
+Avoid hardcoding calculations inside UI components where possible.
+
+## Development Process
+
+Work in small steps.
+
+After each major step, run:
+
+```bash
+npm run build
+```
+
+Fix TypeScript/build errors before moving on.
+
+Git may not be installed. If Git is unavailable, do not fail the task. Instead, tell the user when a stable milestone is reached so they can manually copy the project folder as a backup.
+
+Suggested checkpoints:
+
+1. Initial Vite project created
+2. Product database and types added
+3. Product section UI working
+4. Summary calculations working
+5. Save/load working
+6. CSV export working
+7. Styling pass complete
+
+## First Task
+
+Build the first working version of the app.
+
+Start by creating the project structure, then implement the core UI and sample product data.
+
+The first version should prioritize function over polish.
