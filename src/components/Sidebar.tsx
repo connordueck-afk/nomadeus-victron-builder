@@ -19,6 +19,8 @@ type SidebarProps = {
   onDeleteSavedSystem: () => void;
   onReset: () => void;
   onExportCsv: () => void;
+  onExportSystemFile: () => void;
+  onImportSystemFile: (file: File) => void;
 };
 
 export function Sidebar({
@@ -36,6 +38,8 @@ export function Sidebar({
   onDeleteSavedSystem,
   onReset,
   onExportCsv,
+  onExportSystemFile,
+  onImportSystemFile,
 }: SidebarProps) {
   return (
     <aside className="sidebar">
@@ -146,6 +150,23 @@ export function Sidebar({
         <button type="button" onClick={onSave}>
           Save
         </button>
+        <button type="button" onClick={onExportSystemFile}>
+          Export
+        </button>
+        <label className="file-button">
+          Import
+          <input
+            type="file"
+            accept=".json,.nomadeus.json,application/json"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) {
+                onImportSystemFile(file);
+              }
+              event.target.value = "";
+            }}
+          />
+        </label>
         <button type="button" onClick={onExportCsv}>
           CSV
         </button>

@@ -29,6 +29,7 @@ export function ProductSection({
   onDeleteRow,
 }: ProductSectionProps) {
   const totals = getSectionTotals(rows, section);
+  const isDcDcSection = section === "DC-DC Converters";
   const compatibleProducts = products.filter((product) =>
     isProductCompatibleWithConfig(product, config),
   );
@@ -68,6 +69,7 @@ export function ProductSection({
                 <tr>
                   <th>#</th>
                   <th>Manufacturer</th>
+                  {isDcDcSection ? <th>Role</th> : null}
                   <th>Model Number</th>
                   <th>Description</th>
                   <th>Key Specs</th>
@@ -82,7 +84,7 @@ export function ProductSection({
               <tbody>
                 {rows.length === 0 ? (
                   <tr>
-                    <td colSpan={11} className="empty-row">
+                    <td colSpan={isDcDcSection ? 12 : 11} className="empty-row">
                       {compatibleProducts.length === 0
                         ? `No compatible products for ${config.systemVoltage}.`
                         : "No products selected yet."}

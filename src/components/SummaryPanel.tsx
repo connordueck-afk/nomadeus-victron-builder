@@ -46,6 +46,10 @@ export function SummaryPanel({ rows, totals, comparison }: SummaryPanelProps) {
         <strong>{totals.mpptChargeCurrentA} A</strong>
       </div>
       <div className="metric">
+        <span>DC-DC input current</span>
+        <strong>{totals.dcDcInputCurrentA} A</strong>
+      </div>
+      <div className="metric">
         <span>DC-DC output current</span>
         <strong>{totals.dcDcOutputCurrentA} A</strong>
       </div>

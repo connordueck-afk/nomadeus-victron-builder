@@ -28,6 +28,8 @@ export type ProductType =
   | "accessory"
   | "cables-materials";
 
+export type DcDcDirectionality = "uni-directional" | "bi-directional";
+
 export type Product = {
   id: string;
   manufacturer: string;
@@ -44,6 +46,7 @@ export type Product = {
   pvPower?: string;
   currentRating?: string;
   communication?: string;
+  dcDcDirectionality?: DcDcDirectionality;
   supportedSystemVoltages?: SystemVoltage[];
   supportedAcOutputs?: AcOutput[];
   msrp: number;

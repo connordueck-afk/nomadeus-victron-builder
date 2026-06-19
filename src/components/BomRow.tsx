@@ -1,7 +1,8 @@
 import type { Product } from "../types/product";
-import type { BomRow as BomRowType, SystemConfig } from "../types/system";
+import type { BomRow as BomRowType, DcDcRole, SystemConfig } from "../types/system";
 import type { EnrichedBomRow } from "../utils/calculations";
 import { formatCurrency, getKeySpecs } from "../utils/calculations";
+import { dcDcRoles, getDcDcRoleLabel, getRowDcDcRole } from "../utils/dcDc";
 import {
   getCompatibilityMismatchMessage,
   isProductCompatibleWithConfig,
@@ -17,8 +18,10 @@ type BomRowProps = {
 };
 
 export function BomRow({ index, row, products, config, onUpdate, onDelete }: BomRowProps) {
+  const isDcDcRow = row.section === "DC-DC Converters";
+  const dcDcRole = getRowDcDcRole(row);
   const compatibleProducts = products.filter((product) =>
-    isProductCompatibleWithConfig(product, config),
+    isProductCompatibleWithConfig(product, config, isDcDcRow ? dcDcRole : undefined),
   );
   const currentProduct = row.product;
   const currentIsInOptions = compatibleProducts.some(
@@ -29,20 +32,41 @@ export function BomRow({ index, row, products, config, onUpdate, onDelete }: Bom
       ? [currentProduct, ...compatibleProducts]
       : compatibleProducts;
   const mismatchMessage = currentProduct
-    ? getCompatibilityMismatchMessage(currentProduct, config)
+    ? getCompatibilityMismatchMessage(
+        currentProduct,
+        config,
+        isDcDcRow ? dcDcRole : undefined,
+      )
     : null;
 
   return (
     <tr className={mismatchMessage ? "mismatch-row" : undefined}>
       <td>{index}</td>
       <td>{row.product?.manufacturer ?? ""}</td>
+      {isDcDcRow ? (
+        <td>
+          <select
+            value={dcDcRole}
+            onChange={(event) => onUpdate({ dcDcRole: event.target.value as DcDcRole })}
+            aria-label="DC-DC role"
+          >
+            {dcDcRoles.map((role) => (
+              <option key={role} value={role}>
+                {getDcDcRoleLabel(role)}
+              </option>
+            ))}
+          </select>
+        </td>
+      ) : null}
       <td>
         <select
           value={row.productId}
           onChange={(event) => onUpdate({ productId: event.target.value })}
           aria-label="Product model number"
           className={mismatchMessage ? "mismatch-select" : undefined}
+          disabled={options.length === 0}
         >
+          {options.length === 0 ? <option value="">No compatible products</option> : null}
           {options.map((product) => (
             <option key={product.id} value={product.id}>
               {product.description} ({product.modelNumber})

@@ -34,6 +34,11 @@ button {
   padding: 0.55rem 0.8rem;
 }
 
+button,
+.file-button {
+  min-height: 2.35rem;
+}
+
 button:hover {
   background: #1055ad;
 }
@@ -136,6 +141,31 @@ label {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 0.5rem;
+}
+
+.file-button {
+  display: grid;
+  place-items: center;
+  border-radius: 6px;
+  background: #1769d2;
+  color: #fff;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 700;
+  padding: 0.55rem 0.8rem;
+}
+
+.file-button:hover {
+  background: #1055ad;
+}
+
+.file-button input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
 }
 
 .view-switch {
@@ -290,6 +320,15 @@ label {
 
 .diagram-node {
   stroke-width: 2;
+}
+
+.diagram-node-group {
+  cursor: grab;
+  touch-action: none;
+}
+
+.diagram-node-group:active {
+  cursor: grabbing;
 }
 
 .diagram-node.source {

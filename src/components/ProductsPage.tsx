@@ -1,6 +1,7 @@
 import { productSections } from "../data/products";
 import type { Product } from "../types/product";
 import { formatCurrency } from "../utils/calculations";
+import { getDcDcDirectionalityLabel } from "../utils/dcDc";
 
 type ProductsPageProps = {
   products: Product[];
@@ -159,6 +160,13 @@ const catalogColumns: CatalogColumn[] = [
     isOptional: true,
     hasValue: (product) => Boolean(product.communication),
     render: (product) => product.communication || "-",
+  },
+  {
+    key: "dcDcDirectionality",
+    label: "Directionality",
+    isOptional: true,
+    hasValue: (product) => Boolean(product.dcDcDirectionality),
+    render: (product) => getDcDcDirectionalityLabel(product) || "-",
   },
   {
     key: "supportedSystemVoltages",

@@ -14,6 +14,7 @@ import type { ProductSection as ProductSectionName } from "./types/product";
 import type { Application, BomRow, NomadeusComparison, SystemConfig } from "./types/system";
 import { enrichRows, getSystemTotals } from "./utils/calculations";
 import { createCsvExport } from "./utils/csvExport";
+import { getRowDcDcRole } from "./utils/dcDc";
 import { isProductCompatibleWithConfig } from "./utils/productCompatibility";
 import {
   deleteSavedSystem,
@@ -21,6 +22,7 @@ import {
   loadSystem,
   saveSystem,
 } from "./utils/storage";
+import { createSystemFile, parseSystemFile, safeSystemFileName } from "./utils/systemFile";
 
 function App() {
   const [config, setConfig] = useState<SystemConfig>(defaultConfig);
@@ -51,9 +53,11 @@ function App() {
   }
 
   function addRow(section: ProductSectionName) {
+    const dcDcRole = section === "DC-DC Converters" ? "input" : undefined;
     const firstProduct = products.find(
       (product) =>
-        product.section === section && isProductCompatibleWithConfig(product, config),
+        product.section === section &&
+        isProductCompatibleWithConfig(product, config, dcDcRole),
     );
 
     setCollapsedSections((current) => ({ ...current, [section]: false }));
@@ -64,13 +68,37 @@ function App() {
         section,
         productId: firstProduct?.id ?? "",
         quantity: 1,
+        dcDcRole,
       },
     ]);
   }
 
   function updateRow(rowId: string, update: Partial<BomRow>) {
     setRows((current) =>
-      current.map((row) => (row.id === rowId ? { ...row, ...update } : row)),
+      current.map((row) => {
+        if (row.id !== rowId) {
+          return row;
+        }
+
+        const nextRow = { ...row, ...update };
+        if (nextRow.section !== "DC-DC Converters" || update.productId) {
+          return nextRow;
+        }
+
+        const currentProduct = products.find((product) => product.id === nextRow.productId);
+        const dcDcRole = getRowDcDcRole(nextRow);
+        if (currentProduct && isProductCompatibleWithConfig(currentProduct, config, dcDcRole)) {
+          return nextRow;
+        }
+
+        const replacement = products.find(
+          (product) =>
+            product.section === nextRow.section &&
+            isProductCompatibleWithConfig(product, config, dcDcRole),
+        );
+
+        return { ...nextRow, productId: replacement?.id ?? "" };
+      }),
     );
   }
 
@@ -141,6 +169,35 @@ function App() {
     setStatus("CSV exported");
   }
 
+  function handleExportSystemFile() {
+    const contents = createSystemFile({ config, rows, comparison });
+    const blob = new Blob([contents], { type: "application/json;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${safeSystemFileName(config.systemName)}.nomadeus.json`;
+    link.click();
+    URL.revokeObjectURL(url);
+    setStatus("Setup file exported");
+  }
+
+  async function handleImportSystemFile(file: File) {
+    try {
+      const imported = parseSystemFile(await file.text());
+      const savedRecord = saveSystem(imported);
+
+      setConfig({ ...defaultConfig, ...imported.config });
+      setRows(imported.rows);
+      setComparison({ ...defaultComparison, ...imported.comparison });
+      setSavedSystems(listSavedSystems());
+      setSelectedSavedSystemId(savedRecord.id);
+      setActiveView("builder");
+      setStatus(`Imported "${savedRecord.name}"`);
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Import failed");
+    }
+  }
+
   function toggleSectionCollapsed(section: ProductSectionName) {
     setCollapsedSections((current) => ({
       ...current,
@@ -179,6 +236,8 @@ function App() {
           onDeleteSavedSystem={handleDeleteSavedSystem}
           onReset={handleReset}
           onExportCsv={handleExportCsv}
+          onExportSystemFile={handleExportSystemFile}
+          onImportSystemFile={handleImportSystemFile}
         />
       }
       summary={

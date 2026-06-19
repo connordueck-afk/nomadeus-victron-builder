@@ -18,7 +18,7 @@ export const defaultSystems: SavedSystemRecord[] = [
       rows: [
         { id: "ex-srv-1", section: "MPPT Solar Chargers", productId: "mppt-100-30", quantity: 1 },
         { id: "ex-srv-2", section: "Inverter / Chargers", productId: "multiplus-12-2000", quantity: 1 },
-        { id: "ex-srv-3", section: "DC-DC Converters", productId: "orion-xs-12-12-50", quantity: 1 },
+        { id: "ex-srv-3", section: "DC-DC Converters", productId: "orion-xs-12-12-50", quantity: 1, dcDcRole: "input" },
         { id: "ex-srv-4", section: "AC Chargers", productId: "blue-smart-ip22-30", quantity: 1 },
         { id: "ex-srv-5", section: "Batteries", productId: "discover-aes-lithium-12-200", quantity: 2 },
         { id: "ex-srv-6", section: "Battery Monitors", productId: "smartshunt-500", quantity: 1 },
@@ -49,7 +49,7 @@ export const defaultSystems: SavedSystemRecord[] = [
       rows: [
         { id: "ex-mst-1", section: "MPPT Solar Chargers", productId: "mppt-150-45", quantity: 1 },
         { id: "ex-mst-2", section: "Inverter / Chargers", productId: "multiplus-ii-24-3000", quantity: 1 },
-        { id: "ex-mst-3", section: "DC-DC Converters", productId: "orion-xs-24-24-50", quantity: 1 },
+        { id: "ex-mst-3", section: "DC-DC Converters", productId: "orion-xs-24-24-50", quantity: 1, dcDcRole: "input" },
         { id: "ex-mst-4", section: "AC Chargers", productId: "blue-smart-ip22-24-16", quantity: 1 },
         { id: "ex-mst-5", section: "Batteries", productId: "discover-aes-lithium-24-100", quantity: 4 },
         { id: "ex-mst-6", section: "Battery Monitors", productId: "smartshunt-1000", quantity: 1 },
@@ -112,7 +112,7 @@ export const defaultSystems: SavedSystemRecord[] = [
       rows: [
         { id: "ex-lt-1", section: "MPPT Solar Chargers", productId: "mppt-250-70", quantity: 1 },
         { id: "ex-lt-2", section: "Inverter / Chargers", productId: "multiplus-ii-48-5000-120v", quantity: 1 },
-        { id: "ex-lt-3", section: "DC-DC Converters", productId: "orion-tr-24-48-8-5", quantity: 1 },
+        { id: "ex-lt-3", section: "DC-DC Converters", productId: "orion-tr-24-48-8-5", quantity: 1, dcDcRole: "input" },
         { id: "ex-lt-4", section: "Batteries", productId: "discover-aes-rackmount-48-42-5120", quantity: 4 },
         { id: "ex-lt-5", section: "DC Distribution", productId: "lynx-class-t-power-in", quantity: 1 },
         { id: "ex-lt-6", section: "DC Distribution", productId: "lynx-distributor", quantity: 1 },

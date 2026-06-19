@@ -1,10 +1,11 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { productTypeRules } from "../data/productTypes";
 import type { DiagramTone, ProductTypeRule } from "../data/productTypes";
 import type { ProductType } from "../types/product";
-import type { SystemConfig, NomadeusComparison } from "../types/system";
+import type { DcDcRole, SystemConfig, NomadeusComparison } from "../types/system";
 import type { EnrichedBomRow, SystemTotals } from "../utils/calculations";
 import { formatCurrency, getComparisonDeltas } from "../utils/calculations";
+import { getDcDcRoleLabel, getRowDcDcRole } from "../utils/dcDc";
 
 type ArchitectureDiagramProps = {
   config: SystemConfig;
@@ -47,10 +48,22 @@ type DiagramModel = {
   portMap: DiagramPortMap;
 };
 
+type BlockPosition = {
+  x: number;
+  y: number;
+};
+
+type DragState = {
+  blockId: string;
+  offsetX: number;
+  offsetY: number;
+};
+
 type ProductUnit = {
   model: string;
   family: string;
   productType: ProductType;
+  dcDcRole?: DcDcRole;
   powerRating?: string;
   currentRating?: string;
 };
@@ -64,6 +77,15 @@ type DiagramPortMap = Record<
 const diagramId = "architecture-diagram-svg";
 const NODE_WIDTH = 188;
 const NODE_HEIGHT = 92;
+const SVG_WIDTH = 1420;
+const SVG_HEIGHT = 900;
+const NODE_COLORS: Record<DiagramTone, { fill: string; stroke: string }> = {
+  source: { fill: "#edf7f3", stroke: "#4b9c78" },
+  power: { fill: "#eef4ff", stroke: "#3975c5" },
+  storage: { fill: "#fff5df", stroke: "#ca8a21" },
+  control: { fill: "#f3f0ff", stroke: "#7c61c7" },
+  load: { fill: "#f8f3ee", stroke: "#a66a43" },
+};
 
 export function ArchitectureDiagram({
   config,
@@ -72,8 +94,50 @@ export function ArchitectureDiagram({
   comparison,
 }: ArchitectureDiagramProps) {
   const selectedRows = rows.filter((row) => row.product && row.quantity > 0);
-  const diagram = useMemo(() => getDiagramModel(selectedRows), [selectedRows]);
+  const [blockPositions, setBlockPositions] = useState<Record<string, BlockPosition>>({});
+  const [dragState, setDragState] = useState<DragState | null>(null);
+  const baseDiagram = useMemo(() => getDiagramModel(selectedRows), [selectedRows]);
+  const diagram = useMemo(
+    () => applyBlockPositions(baseDiagram, blockPositions),
+    [baseDiagram, blockPositions],
+  );
   const deltas = getComparisonDeltas(totals, comparison);
+  const hasMovedBlocks = Object.keys(blockPositions).length > 0;
+
+  function startBlockDrag(block: DiagramBlock, event: React.PointerEvent<SVGGElement>) {
+    const point = getSvgPoint(event.currentTarget.ownerSVGElement, event.clientX, event.clientY);
+    if (!point) {
+      return;
+    }
+
+    event.currentTarget.setPointerCapture(event.pointerId);
+    setDragState({
+      blockId: block.id,
+      offsetX: point.x - block.x,
+      offsetY: point.y - block.y,
+    });
+  }
+
+  function dragBlock(event: React.PointerEvent<SVGSVGElement>) {
+    if (!dragState) {
+      return;
+    }
+
+    const point = getSvgPoint(event.currentTarget, event.clientX, event.clientY);
+    const block = diagram.blocks[dragState.blockId];
+    if (!point || !block) {
+      return;
+    }
+
+    event.preventDefault();
+    setBlockPositions((current) => ({
+      ...current,
+      [dragState.blockId]: {
+        x: clamp(point.x - dragState.offsetX, 0, SVG_WIDTH - block.width),
+        y: clamp(point.y - dragState.offsetY, 88, SVG_HEIGHT - block.height - 56),
+      },
+    }));
+  }
 
   return (
     <section className="presentation-panel">
@@ -83,6 +147,14 @@ export function ArchitectureDiagram({
           <h2>Architecture</h2>
         </div>
         <div className="presentation-actions">
+          <button
+            type="button"
+            className="secondary"
+            disabled={!hasMovedBlocks}
+            onClick={() => setBlockPositions({})}
+          >
+            Reset layout
+          </button>
           <button type="button" onClick={() => downloadDiagramSvg(config.systemName)}>
             Export SVG
           </button>
@@ -96,17 +168,18 @@ export function ArchitectureDiagram({
         <svg
           id={diagramId}
           className="architecture-svg"
-          viewBox="0 0 1420 900"
+          viewBox={`0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`}
           role="img"
           aria-label="System architecture diagram"
+          onPointerMove={dragBlock}
+          onPointerUp={() => setDragState(null)}
+          onPointerCancel={() => setDragState(null)}
         >
-          <defs>
-          </defs>
-          <rect width="1420" height="900" rx="18" fill="#fbfcfe" />
-          <text x="40" y="48" className="svg-title">
+          <rect width={SVG_WIDTH} height={SVG_HEIGHT} rx="18" fill="#fbfcfe" />
+          <text x="40" y="48" className="svg-title" fill="#172033" fontSize="26" fontWeight="900">
             {config.systemName || "Untitled system"}
           </text>
-          <text x="40" y="76" className="svg-subtitle">
+          <text x="40" y="76" className="svg-subtitle" fill="#5f6f85" fontSize="15" fontWeight="700">
             {config.application} | {config.systemVoltage} | {config.acOutput}
           </text>
 
@@ -121,45 +194,91 @@ export function ArchitectureDiagram({
           ))}
 
           {Object.values(diagram.blocks).map((block) => (
-            <DiagramNode key={block.id} block={block} />
+            <DiagramNode key={block.id} block={block} onPointerDown={startBlockDrag} />
           ))}
 
           {diagram.ports.map((port) => (
             <DiagramPortNode key={port.id} port={port} />
           ))}
 
-          <g transform="translate(40 825)">
-            <text className="svg-kicker">Selected product build</text>
-            <text x="0" y="28" className="svg-metric">
-              MSRP {formatCurrency(totals.msrp)}
-            </text>
-            <text x="210" y="28" className="svg-metric">
-              OEM {formatCurrency(totals.oem)}
-            </text>
-            <text x="405" y="28" className="svg-metric">
-              Hardware {totals.hardwareCount} items
-            </text>
-            <text x="650" y="28" className="svg-metric">
-              Nomadeus delta {formatCurrency(deltas.oemMinusTargetBom)}
-            </text>
-          </g>
+          <PriceSummary totals={totals} comparison={comparison} oemDelta={deltas.oemMinusTargetBom} />
         </svg>
       </div>
     </section>
   );
 }
 
-function DiagramNode({ block }: { block: DiagramBlock }) {
+function PriceSummary({
+  totals,
+  comparison,
+  oemDelta,
+}: {
+  totals: SystemTotals;
+  comparison: NomadeusComparison;
+  oemDelta: number;
+}) {
+  const metrics = [
+    { label: "Total MSRP", value: formatCurrency(totals.msrp) },
+    { label: "OEM estimate", value: formatCurrency(totals.oem) },
+    { label: "Target BOM", value: formatCurrency(comparison.targetBomCost) },
+    { label: "OEM delta", value: formatCurrency(oemDelta) },
+    { label: "Hardware", value: `${totals.hardwareCount} items` },
+  ];
+
   return (
-    <g transform={`translate(${block.x} ${block.y})`}>
-      <rect className={`diagram-node ${block.tone}`} width={block.width} height={block.height} rx="8" />
-      <text x="14" y="26" className="node-title">
+    <g transform="translate(40 798)">
+      <rect width="1340" height="76" rx="10" fill="#ffffff" stroke="#d7e2ef" strokeWidth="2" />
+      <text x="20" y="28" className="svg-kicker" fill="#5f6f85" fontSize="13" fontWeight="800">
+        PRICE SUMMARY
+      </text>
+      {metrics.map((metric, index) => {
+        const x = 20 + index * 260;
+        return (
+          <g key={metric.label} transform={`translate(${x} 44)`}>
+            <text fill="#65748a" fontSize="12" fontWeight="700">
+              {metric.label}
+            </text>
+            <text y="23" className="svg-metric" fill="#172033" fontSize="19" fontWeight="900">
+              {metric.value}
+            </text>
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
+function DiagramNode({
+  block,
+  onPointerDown,
+}: {
+  block: DiagramBlock;
+  onPointerDown: (block: DiagramBlock, event: React.PointerEvent<SVGGElement>) => void;
+}) {
+  const colors = NODE_COLORS[block.tone];
+
+  return (
+    <g
+      className="diagram-node-group"
+      transform={`translate(${block.x} ${block.y})`}
+      onPointerDown={(event) => onPointerDown(block, event)}
+    >
+      <rect
+        className={`diagram-node ${block.tone}`}
+        width={block.width}
+        height={block.height}
+        rx="8"
+        fill={colors.fill}
+        stroke={colors.stroke}
+        strokeWidth="2"
+      />
+      <text x="14" y="26" className="node-title" fill="#172033" fontSize="16" fontWeight="900">
         {block.title}
       </text>
-      <text x="14" y="49" className="node-subtitle">
+      <text x="14" y="49" className="node-subtitle" fill="#34465f" fontSize="12" fontWeight="800">
         {block.subtitle}
       </text>
-      <text x="14" y="72" className="node-detail">
+      <text x="14" y="72" className="node-detail" fill="#65748a" fontSize="11" fontWeight="700">
         {block.detail}
       </text>
     </g>
@@ -172,6 +291,10 @@ function DiagramPortNode({ port }: { port: DiagramPort }) {
       className={`diagram-port ${port.kind}`}
       d="M 7 0 L -5 6 L -5 -6 Z"
       transform={`translate(${port.x} ${port.y}) rotate(${port.angle})`}
+      fill={port.kind === "input" ? "#ffffff" : "#315170"}
+      stroke={port.kind === "input" ? "#315170" : "#ffffff"}
+      strokeLinejoin="round"
+      strokeWidth="2"
     />
   );
 }
@@ -197,6 +320,10 @@ function Connector({
     <path
       className="diagram-connector"
       d={d}
+      fill="none"
+      stroke="#315170"
+      strokeWidth="2"
+      opacity="0.8"
     />
   );
 }
@@ -283,6 +410,49 @@ function getDiagramModel(rows: EnrichedBomRow[]): DiagramModel {
   ]);
 
   return { blocks, connectors, ports, portMap };
+}
+
+function applyBlockPositions(
+  diagram: DiagramModel,
+  positions: Record<string, BlockPosition>,
+): DiagramModel {
+  const blocks = Object.fromEntries(
+    Object.entries(diagram.blocks).map(([id, block]) => [
+      id,
+      positions[id] ? { ...block, ...positions[id] } : block,
+    ]),
+  );
+  const portMap = getDiagramPortMap(blocks, diagram.connectors);
+  const ports = Object.values(portMap).flatMap((blockPorts) => [
+    ...Object.values(blockPorts.input),
+    ...Object.values(blockPorts.output),
+  ]);
+
+  return { blocks, connectors: diagram.connectors, ports, portMap };
+}
+
+function getSvgPoint(
+  svg: SVGSVGElement | null,
+  clientX: number,
+  clientY: number,
+): { x: number; y: number } | undefined {
+  if (!svg) {
+    return undefined;
+  }
+
+  const point = svg.createSVGPoint();
+  const matrix = svg.getScreenCTM();
+  if (!matrix) {
+    return undefined;
+  }
+
+  point.x = clientX;
+  point.y = clientY;
+  return point.matrixTransform(matrix.inverse());
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
 }
 
 function getDiagramPortMap(
@@ -514,6 +684,7 @@ function getUnitsByType(rows: EnrichedBomRow[]): Partial<Record<ProductType, Pro
       model: row.product?.modelNumber ?? "",
       family: row.product?.family ?? "",
       productType,
+      dcDcRole: productType === "dc-dc-converter" ? getRowDcDcRole(row) : undefined,
       powerRating: row.product?.powerRating,
       currentRating: row.product?.currentRating,
     }));
@@ -537,19 +708,45 @@ function createUnitBlocks(
 
   return units.reduce<Record<string, DiagramBlock>>((blocks, unit, index) => {
     const title = units.length > 1 ? `${rule.label} #${index + 1}` : rule.label;
+    const detail =
+      unit.productType === "dc-dc-converter" && unit.dcDcRole
+        ? `${unit.family || "Not selected"} | ${getDcDcRoleLabel(unit.dcDcRole)}`
+        : unit.family || "Not selected";
+
     return {
       ...blocks,
       [`${rule.type}-${index + 1}`]: block(
         `${rule.type}-${index + 1}`,
         title,
         unit.model || `${units.length} selected`,
-        unit.family || "Not selected",
-        rule.x,
-        rule.y + index * spacing,
+        detail,
+        getUnitX(rule, unit),
+        getUnitY(rule, unit, index, spacing),
         rule.tone,
       ),
     };
   }, {});
+}
+
+function getUnitX(rule: ProductTypeRule, unit: ProductUnit): number {
+  if (unit.productType === "dc-dc-converter" && unit.dcDcRole === "output") {
+    return 616;
+  }
+
+  return rule.x;
+}
+
+function getUnitY(
+  rule: ProductTypeRule,
+  unit: ProductUnit,
+  index: number,
+  spacing: number,
+): number {
+  if (unit.productType === "dc-dc-converter" && unit.dcDcRole === "output") {
+    return 610 + index * spacing;
+  }
+
+  return rule.y + index * spacing;
 }
 
 function unitIds(type: ProductType, units: ProductUnit[]): string[] {
@@ -562,6 +759,10 @@ function getRuleConnectors(
   blocks: Record<string, DiagramBlock>,
 ): DiagramConnector[] {
   const ids = unitIds(rule.type, unitsFor(rule.type));
+  if (rule.type === "dc-dc-converter") {
+    return getDcDcConnectors(ids, unitsFor(rule.type));
+  }
+
   const anchorInputs = rule.inputAnchors.flatMap((input) =>
     ids.map((id) => ({ from: input, to: id })),
   );
@@ -577,6 +778,32 @@ function getRuleConnectors(
   });
 
   return [...anchorInputs, ...anchorOutputs, ...productInputs, ...productOutputs];
+}
+
+function getDcDcConnectors(ids: string[], units: ProductUnit[]): DiagramConnector[] {
+  return ids.flatMap((id, index) => {
+    const role = units[index]?.dcDcRole ?? "input";
+
+    if (role === "output") {
+      return [
+        { from: "dc-bus", to: id },
+        { from: id, to: "dc-loads" },
+      ];
+    }
+
+    if (role === "bidirectional") {
+      return [
+        { from: "alternator", to: id },
+        { from: id, to: "dc-bus" },
+        { from: "dc-bus", to: id },
+      ];
+    }
+
+    return [
+      { from: "alternator", to: id },
+      { from: id, to: "dc-bus" },
+    ];
+  });
 }
 
 function summarizeUnitFamilies(units: ProductUnit[]): string {
@@ -647,7 +874,7 @@ function downloadDiagramSvg(systemName: string) {
     return;
   }
 
-  const source = new XMLSerializer().serializeToString(svg);
+  const source = serializeDiagramSvg(svg);
   const blob = new Blob([source], { type: "image/svg+xml;charset=utf-8" });
   downloadBlob(blob, `${safeFileName(systemName)}-architecture.svg`);
 }
@@ -658,7 +885,7 @@ function downloadDiagramPng(systemName: string) {
     return;
   }
 
-  const source = new XMLSerializer().serializeToString(svg);
+  const source = serializeDiagramSvg(svg);
   const url = URL.createObjectURL(new Blob([source], { type: "image/svg+xml;charset=utf-8" }));
   const image = new Image();
 
@@ -685,6 +912,16 @@ function downloadDiagramPng(systemName: string) {
   };
 
   image.src = url;
+}
+
+function serializeDiagramSvg(svg: Element): string {
+  const clone = svg.cloneNode(true) as SVGSVGElement;
+  clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+  clone.setAttribute("width", String(SVG_WIDTH));
+  clone.setAttribute("height", String(SVG_HEIGHT));
+  clone.setAttribute("viewBox", `0 0 ${SVG_WIDTH} ${SVG_HEIGHT}`);
+
+  return new XMLSerializer().serializeToString(clone);
 }
 
 function downloadBlob(blob: Blob, fileName: string) {

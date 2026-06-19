@@ -1,5 +1,6 @@
 import type { Product, ProductSection } from "../types/product";
 import type { BomRow, NomadeusComparison } from "../types/system";
+import { getDcDcDirectionalityLabel, getRowDcDcRole } from "./dcDc";
 
 export type EnrichedBomRow = BomRow & {
   product?: Product;
@@ -19,6 +20,7 @@ export type SectionTotals = {
 export type SystemTotals = SectionTotals & {
   inverterCapacityVa: number;
   mpptChargeCurrentA: number;
+  dcDcInputCurrentA: number;
   dcDcOutputCurrentA: number;
 };
 
@@ -73,6 +75,9 @@ export function getSystemTotals(rows: EnrichedBomRow[]): SystemTotals {
     (totals, row) => {
       const chargeCurrent = parseFirstNumber(row.product?.chargeCurrent);
       const powerRating = parseFirstNumber(row.product?.powerRating);
+      const isDcDc = row.product?.productType === "dc-dc-converter";
+      const dcDcRole = getRowDcDcRole(row);
+      const dcDcCurrent = isDcDc ? chargeCurrent * row.quantity : 0;
 
       return {
         msrp: totals.msrp + row.lineMsrp,
@@ -85,9 +90,12 @@ export function getSystemTotals(rows: EnrichedBomRow[]): SystemTotals {
         mpptChargeCurrentA:
           totals.mpptChargeCurrentA +
           (row.product?.productType === "mppt" ? chargeCurrent * row.quantity : 0),
+        dcDcInputCurrentA:
+          totals.dcDcInputCurrentA +
+          (dcDcRole === "input" || dcDcRole === "bidirectional" ? dcDcCurrent : 0),
         dcDcOutputCurrentA:
           totals.dcDcOutputCurrentA +
-          (row.product?.productType === "dc-dc-converter" ? chargeCurrent * row.quantity : 0),
+          (dcDcRole === "output" || dcDcRole === "bidirectional" ? dcDcCurrent : 0),
       };
     },
     {
@@ -97,6 +105,7 @@ export function getSystemTotals(rows: EnrichedBomRow[]): SystemTotals {
       lineCount: 0,
       inverterCapacityVa: 0,
       mpptChargeCurrentA: 0,
+      dcDcInputCurrentA: 0,
       dcDcOutputCurrentA: 0,
     },
   );
@@ -120,6 +129,7 @@ export function getKeySpecs(product?: Product): string {
     product.acVoltage,
     product.powerRating,
     product.chargeCurrent,
+    getDcDcDirectionalityLabel(product),
     product.pvInputVoltage ? `PV ${product.pvInputVoltage}` : undefined,
     product.pvPower,
     product.currentRating,

@@ -1,5 +1,6 @@
 import type { SystemConfig } from "../types/system";
 import type { EnrichedBomRow } from "./calculations";
+import { getDcDcDirectionalityLabel, getDcDcRoleLabel, getRowDcDcRole } from "./dcDc";
 
 const headers = [
   "Application",
@@ -7,6 +8,8 @@ const headers = [
   "System voltage",
   "AC output",
   "Product section",
+  "DC-DC role",
+  "DC-DC directionality",
   "Manufacturer",
   "Model number",
   "Description",
@@ -26,6 +29,8 @@ export function createCsvExport(config: SystemConfig, rows: EnrichedBomRow[]): s
     config.systemVoltage,
     config.acOutput,
     row.section,
+    row.section === "DC-DC Converters" ? getDcDcRoleLabel(getRowDcDcRole(row)) : "",
+    getDcDcDirectionalityLabel(row.product),
     row.product?.manufacturer ?? "",
     row.product?.modelNumber ?? "",
     row.product?.description ?? "",

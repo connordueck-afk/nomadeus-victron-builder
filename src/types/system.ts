@@ -20,11 +20,14 @@ export type AcOutput =
   | "230 VAC"
   | "No AC Output";
 
+export type DcDcRole = "input" | "output" | "bidirectional";
+
 export type BomRow = {
   id: string;
   section: ProductSection;
   productId: string;
   quantity: number;
+  dcDcRole?: DcDcRole;
 };
 
 export type SystemConfig = {
